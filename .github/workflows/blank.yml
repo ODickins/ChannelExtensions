@@ -1,0 +1,66 @@
+name: Publish to NuGet
+
+on:
+  # Publish when a GitHub Release is published. Tag the release v1.2.3 -> package 1.2.3.
+  release:
+    types: [published]
+  # Allow a manual dry run (packs but does not push unless a version is given).
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: ChannelExtensions.Durability/ChannelExtensions.Durability.csproj
+  CONFIGURATION: Release
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="0.0.0-ci.${{ github.run_number }}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Building version $VERSION"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration "$CONFIGURATION" --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: Test
+        run: dotnet test --configuration "$CONFIGURATION" --no-build
+
+      - name: Pack
+        run: dotnet pack "$PROJECT" --configuration "$CONFIGURATION" --no-build -p:Version=${{ steps.version.outputs.version }} -o artifacts
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/*.*nupkg
+
+      - name: Push to NuGet
+        if: github.event_name == 'release'
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
