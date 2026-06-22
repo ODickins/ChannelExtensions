@@ -19,6 +19,7 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # Must match the environment named in the nuget.org Trusted Publishing policy.
     environment: release
     steps:
       - name: Checkout
