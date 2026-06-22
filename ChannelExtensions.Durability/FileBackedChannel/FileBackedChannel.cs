@@ -19,12 +19,10 @@ public sealed partial class FileBackedChannel<T> : Channel<T>, IDisposable
     private long _pendingDiskCount;
 
     /// <summary>
-    /// Represents a channel implementation that supports durable, file-backed storage for unprocessed data.
-    /// This ensures that in-memory channel overflow can be persisted to disk, allowing data recovery and resiliency.
+    /// Creates a durable, file-backed channel that persists in-memory overflow to disk,
+    /// allowing data recovery and resiliency across restarts.
     /// </summary>
-    /// <typeparam name="T">
-    /// The type of elements held within the channel.
-    /// </typeparam>
+    /// <param name="options">The configuration for the channel's capacity, paths, and behavior.</param>
     public FileBackedChannel(FileBackedChannelOptions options)
     {
         // Set basic options, used throughout the channel's lifecycle.

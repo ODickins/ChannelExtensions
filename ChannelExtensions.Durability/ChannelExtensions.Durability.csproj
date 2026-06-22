@@ -1,18 +1,40 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- CS1591: don't require XML docs on every public member. -->
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
+    </PropertyGroup>
+
+    <!-- NuGet package metadata -->
+    <PropertyGroup>
+        <PackageId>ChannelExtensions.Durability</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Oliver Dickins</Authors>
+        <Description>Durable, drop-in variants of System.Threading.Channels.Channel&lt;T&gt; that survive process restarts and back-pressure without dropping or reordering items. Includes FileBackedChannel, which spills to disk when full and replays in order with crash recovery and idempotent delivery.</Description>
+        <PackageTags>channels;durable;file-backed;persistence;queue;system.threading.channels;backpressure;ndjson</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <Copyright>Copyright (c) 2026 Oliver Dickins</Copyright>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.9" />
-      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.9" />
     </ItemGroup>
 
     <ItemGroup>
-      <InternalsVisibleTo Include="ChannelExtensions.Durability.Tests" />
+        <InternalsVisibleTo Include="ChannelExtensions.Durability.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\" />
+        <None Include="..\LICENSE" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>
