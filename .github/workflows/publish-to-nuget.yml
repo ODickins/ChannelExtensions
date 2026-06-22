@@ -69,6 +69,7 @@ jobs:
         uses: NuGet/login@v1
         with:
           user: ${{ vars.NUGET_USER }}
+          environment: release
 
       - name: Push to NuGet
         if: github.event_name == 'release'
