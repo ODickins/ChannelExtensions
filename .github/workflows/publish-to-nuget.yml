@@ -9,6 +9,8 @@ on:
 
 permissions:
   contents: read
+  # Required for OIDC trusted publishing to NuGet (no stored API key).
+  id-token: write
 
 env:
   PROJECT: ChannelExtensions.Durability/ChannelExtensions.Durability.csproj
@@ -57,10 +59,19 @@ jobs:
           name: nuget-packages
           path: artifacts/*.*nupkg
 
+      # Exchanges the GitHub OIDC token for a short-lived NuGet API key.
+      # Requires a Trusted Publishing policy configured on nuget.org.
+      - name: NuGet trusted publishing login
+        if: github.event_name == 'release'
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
       - name: Push to NuGet
         if: github.event_name == 'release'
         run: >
           dotnet nuget push "artifacts/*.nupkg"
-          --api-key "${{ secrets.NUGET_API_KEY }}"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
