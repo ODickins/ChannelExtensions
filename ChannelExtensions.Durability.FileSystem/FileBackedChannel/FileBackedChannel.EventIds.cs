@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace ChannelExtensions.Durability.FileBackedChannel;
+namespace ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
 internal static class FileBackedChannelEventIds
 {

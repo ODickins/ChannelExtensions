@@ -1,5 +1,6 @@
 using System.Threading.Channels;
-using ChannelExtensions.Durability.FileBackedChannel;
+using ChannelExtensions.Durability.FileSystem;
+using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 using static ChannelExtensions.Durability.Tests.TestHelpers;
 
 namespace ChannelExtensions.Durability.Tests;

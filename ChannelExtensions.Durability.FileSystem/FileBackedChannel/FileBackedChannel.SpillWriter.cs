@@ -1,7 +1,7 @@
 ﻿using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
-namespace ChannelExtensions.Durability.FileBackedChannel;
+namespace ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
 public sealed partial class FileBackedChannel<T>
 {

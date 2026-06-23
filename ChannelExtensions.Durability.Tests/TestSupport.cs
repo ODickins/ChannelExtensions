@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Threading.Channels;
+using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 using Microsoft.Extensions.Logging;
 
 namespace ChannelExtensions.Durability.Tests;
@@ -56,7 +57,7 @@ internal sealed class TestLogger : ILogger
 internal static class TestHelpers
 {
     // Short intervals so tests don't wait on the production 15s/1s defaults.
-    public static FileBackedChannel.FileBackedChannelOptions Options(
+    public static FileBackedChannelOptions Options(
         string path, int capacity, ILogger? logger = null, int maxBlockSize = 16)
         => new(capacity, path)
         {

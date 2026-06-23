@@ -1,4 +1,4 @@
-# ChannelExtensions.Durability
+# ChannelExtensions.Durability.FileSystem
 
 Durable variants of `System.Threading.Channels.Channel<T>` that survive process
 restarts and back-pressure without dropping or reordering items.
@@ -12,10 +12,11 @@ transparent to producers and consumers.
 | Channel | Backing store | Use when |
 | --- | --- | --- |
 | [`FileBackedChannel<T>`](#filebackedchannel) | Local filesystem (NDJSON blocks) | You need overflow + crash durability on a single node with a local/attached disk. |
+| [`S3BackedChannel<T>`](https://www.nuget.org/packages/ChannelExtensions.Durability.S3) | Amazon S3 (NDJSON chunk objects; no local disk) | You need overflow durability backed by S3, buffered in memory and uploaded in chunks, listed once on startup and tracked in-memory thereafter. Ships in the `ChannelExtensions.Durability.S3` package. |
 
 > More durable channels (e.g. other backing stores) can be added alongside
-> `FileBackedChannel`. Each lives under `ChannelExtensions.Durability` with its
-> own `Create…` factory and options type.
+> `FileBackedChannel`. Each ships as its own `ChannelExtensions.Durability.*`
+> package with its own `Create…` factory and options type.
 
 ---
 
@@ -56,8 +57,8 @@ the disk backlog back into the channel once the consumer catches up.
 
 ```csharp
 using System.Threading.Channels;
-using ChannelExtensions.Durability;
-using ChannelExtensions.Durability.FileBackedChannel;
+using ChannelExtensions.Durability.FileSystem;
+using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
 // Create the channel. The path is created (and verified read/write/delete-able)
 // in the constructor; an unusable path throws.
@@ -138,8 +139,10 @@ exists to minimize.
 
 | Project | Purpose |
 | --- | --- |
-| `ChannelExtensions.Durability` | The durable channel implementations. |
-| `ChannelExtensions.Durability.Tests` | xUnit tests (no-drop, ordering across spill, crash recovery, idempotent replay, logging). |
+| `ChannelExtensions.Durability.FileSystem` | The file-backed durable channel implementation. |
+| `ChannelExtensions.Durability.S3` | The S3-backed durable channel implementation (in-memory buffering, no local disk). |
+| `ChannelExtensions.Durability.Tests` | xUnit tests for the file-backed channel (no-drop, ordering across spill, crash recovery, idempotent replay, logging). |
+| `ChannelExtensions.Durability.S3.Tests` | xUnit tests for the S3-backed channel, run against a real MinIO server via Testcontainers (requires Docker). |
 
 ## Running the tests
 

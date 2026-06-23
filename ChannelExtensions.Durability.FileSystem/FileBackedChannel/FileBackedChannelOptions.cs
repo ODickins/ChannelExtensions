@@ -2,7 +2,7 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
-namespace ChannelExtensions.Durability.FileBackedChannel;
+namespace ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
 /// <summary>
 /// Represents the configuration options for a file-backed channel. This class provides

@@ -11,7 +11,7 @@
 
     <!-- NuGet package metadata -->
     <PropertyGroup>
-        <PackageId>ChannelExtensions.Durability</PackageId>
+        <PackageId>ChannelExtensions.Durability.FileSystem</PackageId>
         <Version>1.0.0</Version>
         <Authors>Oliver Dickins</Authors>
         <Description>Durable, drop-in variants of System.Threading.Channels.Channel&lt;T&gt; that survive process restarts and back-pressure without dropping or reordering items. Includes FileBackedChannel, which spills to disk when full and replays in order with crash recovery and idempotent delivery.</Description>
@@ -20,8 +20,15 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <Copyright>Copyright (c) 2026 Oliver Dickins</Copyright>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <PackageProjectUrl>https://github.com/ODickins/ChannelExtensions</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/ODickins/ChannelExtensions.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+        <!-- Source Link: embed the repo URL + commit so the .snupkg resolves to GitHub source. -->
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
     </PropertyGroup>
 
     <ItemGroup>
