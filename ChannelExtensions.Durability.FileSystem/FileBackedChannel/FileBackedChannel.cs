@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace ChannelExtensions.Durability.FileBackedChannel;
+namespace ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
 public sealed partial class FileBackedChannel<T> : Channel<T>, IDisposable
 {

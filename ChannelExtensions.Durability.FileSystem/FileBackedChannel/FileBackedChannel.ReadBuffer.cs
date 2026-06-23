@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
-namespace ChannelExtensions.Durability.FileBackedChannel;
+namespace ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
 public sealed partial class FileBackedChannel<T>
 {

@@ -1,7 +1,7 @@
 ﻿using System.Threading.Channels;
-using ChannelExtensions.Durability.FileBackedChannel;
+using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
-namespace ChannelExtensions.Durability;
+namespace ChannelExtensions.Durability.FileSystem;
 
 public static class DurableChannel
 {
