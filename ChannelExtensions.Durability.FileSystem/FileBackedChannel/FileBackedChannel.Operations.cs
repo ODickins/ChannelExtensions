@@ -36,7 +36,7 @@ public sealed partial class FileBackedChannel<T>
     /// </summary>
     private void RecoverTempBlocks()
     {
-        foreach (var tmpPath in Directory.EnumerateFiles(_options.Path, "*.tmp"))
+        foreach (var tmpPath in Directory.EnumerateFiles(_options.Path, $"{_options.NodeId}.*.tmp"))
         {
             try
             {
@@ -93,7 +93,8 @@ public sealed partial class FileBackedChannel<T>
     /// </summary>
     private void SeedPendingPaths()
     {
-        var paths = Directory.EnumerateFiles(_options.Path, "*.ndjson")
+        // Scope the scan to this node id: in a shared directory we only ever pick up our own blocks.
+        var paths = Directory.EnumerateFiles(_options.Path, $"{_options.NodeId}.*.ndjson")
             .OrderBy(f => f, StringComparer.Ordinal)
             .ToList();
 

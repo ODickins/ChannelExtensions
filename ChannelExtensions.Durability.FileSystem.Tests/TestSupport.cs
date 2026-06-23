@@ -56,11 +56,15 @@ internal sealed class TestLogger : ILogger
 
 internal static class TestHelpers
 {
+    // Fixed node id so pre-seeded blocks are scoped to (and recovered by) the channel under test.
+    public const string NodeId = "node";
+
     // Short commit interval so tests don't wait on the production 15s default.
     public static FileBackedChannelOptions Options(
         string path, int capacity, ILogger? logger = null, int maxBlockSize = 16)
         => new(capacity, path)
         {
+            NodeId = NodeId,
             CommitInterval = TimeSpan.FromMilliseconds(100),
             MaxBlockSize = maxBlockSize,
             Logger = logger,
@@ -106,6 +110,7 @@ internal static class TestHelpers
     public static string Ndjson(IEnumerable<int> items)
         => string.Concat(items.Select(i => JsonSerializer.Serialize(i, JsonSerializerOptions.Web) + "\n"));
 
+    // Mirrors the channel's "{NodeId}.{guid}.{count}.ndjson" naming so the scan picks the block up.
     public static void WriteCommittedBlock(string dir, string name, int count, string content)
-        => File.WriteAllText(System.IO.Path.Combine(dir, $"{name}.{count}.ndjson"), content);
+        => File.WriteAllText(System.IO.Path.Combine(dir, $"{NodeId}.{name}.{count}.ndjson"), content);
 }

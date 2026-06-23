@@ -35,9 +35,12 @@ public sealed partial class S3BackedChannel<T>
     /// </summary>
     private void SeedPendingKeysFromS3()
     {
-        // Keys we create are "{Prefix}/{guid}.{count}.ndjson"; list under "{Prefix}/" (or the whole
-        // bucket when there is no prefix).
-        var listPrefix = string.IsNullOrEmpty(_options.Prefix) ? null : _options.Prefix + "/";
+        // Keys we create are "{Prefix}/{NodeId}.{guid}.{count}.ndjson"; list under
+        // "{Prefix}/{NodeId}." (or just "{NodeId}." when there is no prefix). Scoping the listing to
+        // our node id means we never see, list, or replay another node's chunks in a shared bucket.
+        var listPrefix = string.IsNullOrEmpty(_options.Prefix)
+            ? _options.NodeId + "."
+            : $"{_options.Prefix}/{_options.NodeId}.";
         var keys = new List<string>();
         string? continuationToken = null;
 
@@ -75,10 +78,10 @@ public sealed partial class S3BackedChannel<T>
         }
     }
 
-    /// <summary>Builds the S3 object key for a chunk: <c>{Prefix}/{guid}.{count}.ndjson</c>.</summary>
+    /// <summary>Builds the S3 object key for a chunk: <c>{Prefix}/{NodeId}.{guid}.{count}.ndjson</c>.</summary>
     private string BuildKey(string guid, long count)
     {
-        var fileName = $"{guid}.{count}.ndjson";
+        var fileName = $"{_options.NodeId}.{guid}.{count}.ndjson";
         return string.IsNullOrEmpty(_options.Prefix) ? fileName : $"{_options.Prefix}/{fileName}";
     }
 

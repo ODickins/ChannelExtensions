@@ -126,7 +126,7 @@ public class FileBackedChannelTests
 
         // Simulates a crash mid-write: three whole records, then a partial fourth
         // with no terminating newline.
-        File.WriteAllText(Path.Combine(tmp.Path, "0001.tmp"), "0\n1\n2\n99");
+        File.WriteAllText(Path.Combine(tmp.Path, $"{TestHelpers.NodeId}.0001.tmp"), "0\n1\n2\n99");
 
         var channel = Channel.CreateFileBackedChannel<int>(Options(tmp.Path, capacity: 1024));
 
@@ -181,7 +181,8 @@ public class FileBackedChannelTests
         WriteCommittedBlock(tmp.Path, "0001", count: 5, Ndjson([0, 1, 2, 3, 4]));
 
         // Pretend two records were already handed off before a crash.
-        File.WriteAllText(Path.Combine(tmp.Path, "0001.5.ndjson.ckpt"), 2L.ToString("D20"));
+        File.WriteAllText(
+            Path.Combine(tmp.Path, $"{TestHelpers.NodeId}.0001.5.ndjson.ckpt"), 2L.ToString("D20"));
 
         var channel = Channel.CreateFileBackedChannel<int>(Options(tmp.Path, capacity: 1024));
 

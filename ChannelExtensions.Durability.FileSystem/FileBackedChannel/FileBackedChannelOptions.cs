@@ -83,6 +83,49 @@ public class FileBackedChannelOptions : ChannelOptions
     public int MaxBlockSize { get; init; } = 1000;
 
     /// <summary>
+    /// Identifies this node/instance. It is embedded as the first segment of every block file name
+    /// (<c>{NodeId}.{guidv7}.{count}.ndjson</c>) and used to scope the startup scan, so a node only
+    /// ever recovers and replays its own blocks - even when many nodes share a single directory.
+    /// <para>
+    /// Defaults to the sanitized machine name (<see cref="Environment.MachineName"/>), which is stable
+    /// across restarts on the same host: a restarted process - or a Kubernetes StatefulSet pod, whose
+    /// host name is preserved - recovers and replays its own pending blocks. Override it for scenarios
+    /// where the machine name is not stable or not unique. The value is always sanitized to
+    /// <c>[A-Za-z0-9_-]</c> so it is safe inside a file name; falls back to the all-zero guid
+    /// (<c>00000000000000000000000000000000</c>) only if the machine name is empty - which is itself
+    /// stable, so recovery still works on that host.
+    /// </para>
+    /// </summary>
+    public string NodeId
+    {
+        get => _nodeId;
+        init => _nodeId = SanitizeNodeId(value);
+    }
+
+    private readonly string _nodeId = SanitizeNodeId(null);
+
+    /// <summary>
+    /// Sanitizes a node id to <c>[A-Za-z0-9_-]</c> so it is safe as the leading segment of a block
+    /// file name. A <c>null</c>/blank value falls back to the machine name; if that is also empty, the
+    /// all-zero guid is used (stable, so the node still recovers its own backlog).
+    /// </summary>
+    private static string SanitizeNodeId(string? value)
+    {
+        var source = string.IsNullOrWhiteSpace(value) ? Environment.MachineName : value;
+
+        // Replace anything outside the safe set (path separators, dots, whitespace, unicode) with '-'.
+        // Dots are excluded so they can't be confused with the dot-delimited file-name segments.
+        var sanitized = string.IsNullOrEmpty(source)
+            ? string.Empty
+            : new string(source.Select(c =>
+                (c is >= 'a' and <= 'z') || (c is >= 'A' and <= 'Z') || (c is >= '0' and <= '9') || c is '-' or '_'
+                    ? c : '-').ToArray());
+
+        // All-zero guid (not a random one) so an empty machine name still yields a stable id.
+        return string.IsNullOrEmpty(sanitized) ? Guid.Empty.ToString("N") : sanitized;
+    }
+
+    /// <summary>
     /// Provides a mechanism to log informational, warning, and error messages
     /// within the context of a file-backed channel's operations.
     /// </summary>

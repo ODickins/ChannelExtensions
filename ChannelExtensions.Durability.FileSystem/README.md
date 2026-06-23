@@ -91,6 +91,7 @@ builder.Services.AddSingleton<Channel<MyEvent>>(sp =>
 | `Path` (ctor) | — | Directory for block/checkpoint files. Created and verified at construction. |
 | `CommitInterval` | `15s` | Max time a spill block stays open before being committed. |
 | `MaxBlockSize` | `1000` | Max records per block; commits early when reached. |
+| `NodeId` | sanitized machine name | Scopes block file names (`{NodeId}.…`) and the startup scan to this node, so nodes sharing a directory never read each other's blocks. Defaults to `Environment.MachineName` (sanitized to `[A-Za-z0-9_-]`), stable across restarts on the same host - so a restarted process, or a StatefulSet pod, recovers its own backlog. Override for custom scenarios; falls back to the all-zero guid (still stable) if the machine name is empty. |
 | `JsonSerializerOptions` | `JsonSerializerOptions.Web` | Serialization for on-disk records. |
 | `QuarantineCorruptBlocks` | `true` | When `true`, corrupt/unrecoverable blocks are renamed `.corrupt` and kept for inspection. When `false`, they are deleted instead (self-cleaning directory). |
 | `Logger` | `null` (no-op) | `ILogger` for spill/recovery/error events. |
@@ -101,8 +102,8 @@ All files live under `Path`:
 
 | File | Meaning |
 | --- | --- |
-| `{guidv7}.tmp` | A block currently being written. Recovered on startup. |
-| `{guidv7}.{count}.ndjson` | A committed block of `count` records. Time-ordered by the v7 GUID prefix. |
+| `{nodeid}.{guidv7}.tmp` | A block currently being written. Recovered on startup. |
+| `{nodeid}.{guidv7}.{count}.ndjson` | A committed block of `count` records. Time-ordered by the v7 GUID; the node id scopes it to one node. |
 | `{block}.ndjson.ckpt` | Replay checkpoint: records already delivered from that block. |
 | `{name}.corrupt` | A block quarantined after an unrecoverable read error. Only present when `QuarantineCorruptBlocks` is enabled (the default); otherwise such blocks are deleted. |
 

@@ -36,12 +36,16 @@ internal sealed class TestLogger : ILogger
 
 internal static class TestHelpers
 {
+    // Fixed node id so pre-seeded chunks are scoped to (and recovered by) the channel under test.
+    public const string NodeId = "node";
+
     // Short commit interval so tests don't wait on the production 15s default.
     public static S3BackedChannelOptions Options(
         string bucket, string prefix, IAmazonS3 client, int capacity, ILogger? logger = null, int maxChunkSize = 16)
         => new(capacity, bucket, client)
         {
             Prefix = prefix,
+            NodeId = NodeId,
             CommitInterval = TimeSpan.FromMilliseconds(100),
             MaxChunkSize = maxChunkSize,
             Logger = logger,
@@ -101,7 +105,7 @@ internal static class TestHelpers
         var body = string.Concat(
             materialized.Select(i => JsonSerializer.Serialize(i, JsonSerializerOptions.Web) + "\n"));
 
-        var fileName = $"{Guid.CreateVersion7():N}.{materialized.Count}.ndjson";
+        var fileName = $"{NodeId}.{Guid.CreateVersion7():N}.{materialized.Count}.ndjson";
         var key = string.IsNullOrEmpty(prefix) ? fileName : $"{prefix}/{fileName}";
 
         await s3.PutObjectAsync(new PutObjectRequest

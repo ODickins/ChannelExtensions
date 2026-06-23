@@ -111,6 +111,7 @@ builder.Services.AddSingleton<Channel<MyEvent>>(sp =>
 | `Prefix` | `""` (bucket root) | Optional key prefix (sub-key) for chunk objects; surrounding slashes are trimmed. |
 | `CommitInterval` | `15s` | Max time an in-flight chunk is held in memory before it is uploaded. |
 | `MaxChunkSize` | `1000` | Max records per chunk object; uploads as soon as this many have accumulated. |
+| `NodeId` | sanitized machine name | Scopes object keys (`{Prefix}/{NodeId}.…`) and the startup listing to this node, so nodes sharing a bucket/prefix never list or replay each other's chunks. Defaults to `Environment.MachineName` (sanitized to `[A-Za-z0-9_-]`), stable across restarts on the same host - so a restarted process, or a StatefulSet pod, recovers its own backlog. Override for custom scenarios; falls back to the all-zero guid (still stable) if the machine name is empty. |
 | `JsonSerializerOptions` | `JsonSerializerOptions.Web` | Serialization for records. |
 | `QuarantineCorruptObjects` | `true` | When `true`, corrupt objects are copied to a sibling `.corrupt` key and the original deleted. When `false`, they are deleted outright. |
 | `Logger` | `null` (no-op) | `ILogger` for spill/upload/replay events. |
@@ -119,5 +120,5 @@ builder.Services.AddSingleton<Channel<MyEvent>>(sp =>
 
 | Item | Meaning |
 | --- | --- |
-| `{prefix}/{guidv7}.{count}.ndjson` | A committed chunk of `count` records. Time-ordered by the v7 GUID prefix. |
+| `{prefix}/{nodeid}.{guidv7}.{count}.ndjson` | A committed chunk of `count` records. Time-ordered by the v7 GUID; the node id scopes it to one node. |
 | `{key}.corrupt` | A chunk quarantined after an unrecoverable read error (when quarantining is enabled). |

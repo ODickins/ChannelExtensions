@@ -13,8 +13,10 @@ public sealed partial class FileBackedChannel<T>
         // Drain the buffer until the reader is closed (after the last item is written), we keep draining even after application cancellation.
         while (await _diskBuffer.Reader.WaitToReadAsync(CancellationToken.None))
         {
-            // Create a temporary file to write to. Using this name, on app start, we can scan for any half-written files to recover them.
-            var tmpPath = Path.Combine(_options.Path, $"{Guid.CreateVersion7():N}.tmp");
+            // Create a temporary file to write to. The node id prefix scopes it to this node so a
+            // shared directory never mixes blocks between nodes; the v7 guid keeps it time-ordered.
+            // Using this name, on app start, we can scan for any half-written files to recover them.
+            var tmpPath = Path.Combine(_options.Path, $"{_options.NodeId}.{Guid.CreateVersion7():N}.tmp");
             var count = 0;
 
             try
