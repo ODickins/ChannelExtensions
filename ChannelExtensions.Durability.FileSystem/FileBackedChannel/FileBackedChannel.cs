@@ -14,6 +14,12 @@ public sealed partial class FileBackedChannel<T> : Channel<T>, IDisposable
     private readonly Channel<T> _publisher;
     private readonly Channel<T> _diskBuffer;
 
+    // The pending committed block paths awaiting replay, in chronological order. Seeded once from a
+    // single directory scan at startup, then maintained purely in memory: the write loop appends a
+    // path after each commit and the read loop consumes them. The reader blocks on this channel, so
+    // the filesystem is never polled for "is there more work?".
+    private readonly Channel<string> _pendingPaths;
+
     private readonly Lock _gate = new();
     private bool _spilling;
     private long _pendingDiskCount;
@@ -43,18 +49,22 @@ public sealed partial class FileBackedChannel<T> : Channel<T>, IDisposable
         // Create a disk buffer channel, unbounded to allow for exponential growth - flushed to disk when pressure on the publisher channel is detected.
         _diskBuffer = Channel.CreateUnbounded<T>();
 
+        // The in-memory queue of pending block paths. Single reader (the replay loop); the write loop is the writer.
+        _pendingPaths = Channel.CreateUnbounded<string>(new UnboundedChannelOptions { SingleReader = true });
+
         // Expose the reader from the publisher channel, allowing for reading from the channel.
         Reader = _publisher.Reader;
-        
+
         // Expose the writer, wrapped in a spill writer to handle spilling to disk.
         Writer = new SpillWriter(this);
 
         // Before we start, recover any temporary blocks from disk (blocks which were not closed gracefully from an application crash)
         RecoverTempBlocks();
 
-        // Count the number of committed records in the disk buffer, used to determine if we need to start in spill mode.
-        _pendingDiskCount = CountCommittedRecords();
-        
+        // One-time directory scan: seed the pending-path queue (oldest first) and the pending record
+        // count from the committed blocks already on disk. This is the only time the directory is scanned.
+        SeedPendingPaths();
+
         // Start in spill mode if there are any committed records in the disk buffer, ensures we read back in order.
         _spilling = _pendingDiskCount > 0;
 

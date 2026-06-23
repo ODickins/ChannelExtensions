@@ -91,7 +91,6 @@ builder.Services.AddSingleton<Channel<MyEvent>>(sp =>
 | `Path` (ctor) | — | Directory for block/checkpoint files. Created and verified at construction. |
 | `CommitInterval` | `15s` | Max time a spill block stays open before being committed. |
 | `MaxBlockSize` | `1000` | Max records per block; commits early when reached. |
-| `PollInterval` | `1s` | How often the reader looks for newly committed blocks when idle. |
 | `JsonSerializerOptions` | `JsonSerializerOptions.Web` | Serialization for on-disk records. |
 | `QuarantineCorruptBlocks` | `true` | When `true`, corrupt/unrecoverable blocks are renamed `.corrupt` and kept for inspection. When `false`, they are deleted instead (self-cleaning directory). |
 | `Logger` | `null` (no-op) | `ILogger` for spill/recovery/error events. |

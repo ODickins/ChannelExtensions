@@ -81,13 +81,6 @@ public class FileBackedChannelOptions : ChannelOptions
     /// This property defines the size of each batch written to the file system during the persistence process.
     /// </summary>
     public int MaxBlockSize { get; init; } = 1000;
-    
-    /// <summary>
-    /// The frequency at which the channel checks for new messages in the file-backed storage.
-    /// This setting determines the interval between successive polling operations performed
-    /// to detect and retrieve pending messages in the durable file storage.
-    /// </summary>
-    public TimeSpan PollInterval { get; init; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// Provides a mechanism to log informational, warning, and error messages

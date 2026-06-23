@@ -56,6 +56,10 @@ public sealed partial class FileBackedChannel<T>
 
                 // Move the file, this is an atomic 99% of the time depending on the OS and filesystem mind.
                 File.Move(tmpPath, committedPath);
+
+                // Hand the committed block to the read loop. It blocks on this queue rather than
+                // polling the directory, so the reader wakes immediately on a new block.
+                _pendingPaths.Writer.TryWrite(committedPath);
             }
             catch (Exception ex)
             {

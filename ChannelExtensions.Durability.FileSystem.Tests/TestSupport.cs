@@ -56,13 +56,12 @@ internal sealed class TestLogger : ILogger
 
 internal static class TestHelpers
 {
-    // Short intervals so tests don't wait on the production 15s/1s defaults.
+    // Short commit interval so tests don't wait on the production 15s default.
     public static FileBackedChannelOptions Options(
         string path, int capacity, ILogger? logger = null, int maxBlockSize = 16)
         => new(capacity, path)
         {
             CommitInterval = TimeSpan.FromMilliseconds(100),
-            PollInterval = TimeSpan.FromMilliseconds(25),
             MaxBlockSize = maxBlockSize,
             Logger = logger,
         };

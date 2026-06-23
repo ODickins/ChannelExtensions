@@ -86,18 +86,22 @@ public sealed partial class FileBackedChannel<T>
     }
 
     /// <summary>
-    /// Calculates the total number of committed records from all files in the specified directory matching the "*.ndjson" pattern.
+    /// Performs the single startup scan of the channel directory, seeding the pending-path queue
+    /// (oldest first, via the time-ordered v7 guid prefix) and the pending record count from the
+    /// committed "*.ndjson" blocks. This is the only time the directory is scanned; after this,
+    /// pending paths are tracked entirely in memory.
     /// </summary>
-    /// <returns>The cumulative count of committed records found in the disk buffer directory.</returns>
-    private long CountCommittedRecords()
+    private void SeedPendingPaths()
     {
-        long total = 0;
-        foreach (var file in Directory.EnumerateFiles(_options.Path, "*.ndjson"))
-        {
-            total += ParseRecordCount(file);
-        }
+        var paths = Directory.EnumerateFiles(_options.Path, "*.ndjson")
+            .OrderBy(f => f, StringComparer.Ordinal)
+            .ToList();
 
-        return total;
+        foreach (var path in paths)
+        {
+            _pendingPaths.Writer.TryWrite(path);
+            _pendingDiskCount += ParseRecordCount(path);
+        }
     }
 
     /// <summary>

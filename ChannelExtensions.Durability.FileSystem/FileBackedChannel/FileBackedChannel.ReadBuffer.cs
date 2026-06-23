@@ -64,24 +64,20 @@ public sealed partial class FileBackedChannel<T>
         // Do work until we're told to stop.
         while (!cancellationToken.IsCancellationRequested)
         {
-            // Get the next file (in chronological order, v7 uuid is used to ensure correct ordering).
-            var next = Directory.EnumerateFiles(_options.Path, "*.ndjson")
-                .OrderBy(f => f, StringComparer.Ordinal)
-                .FirstOrDefault();
-
-            // If there are no files, idle and then look again.
-            if (next is null)
+            // Wait for the next pending block. This blocks on the in-memory queue rather than polling
+            // the directory - paths are produced by the write loop and by the one-time startup scan.
+            string next;
+            try
             {
-                try
-                {
-                    await Task.Delay(_options.PollInterval, cancellationToken);
-                }
-                catch (OperationCanceledException)
-                {
+                if (!await _pendingPaths.Reader.WaitToReadAsync(cancellationToken))
                     break;
-                }
 
-                continue;
+                if (!_pendingPaths.Reader.TryRead(out next!))
+                    continue;
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
 
             // We have a file to process, get the total number of records in it from the file name.
