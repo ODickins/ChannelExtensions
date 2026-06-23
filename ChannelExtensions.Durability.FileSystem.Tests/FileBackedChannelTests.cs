@@ -1,9 +1,9 @@
 using System.Threading.Channels;
 using ChannelExtensions.Durability.FileSystem;
 using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
-using static ChannelExtensions.Durability.Tests.TestHelpers;
+using static ChannelExtensions.Durability.FileSystem.Tests.TestHelpers;
 
-namespace ChannelExtensions.Durability.Tests;
+namespace ChannelExtensions.Durability.FileSystem.Tests;
 
 public class FileBackedChannelTests
 {

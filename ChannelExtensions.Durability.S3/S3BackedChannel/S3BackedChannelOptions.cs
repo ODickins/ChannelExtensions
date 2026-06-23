@@ -14,12 +14,14 @@ namespace ChannelExtensions.Durability.S3.S3BackedChannel;
 public class S3BackedChannelOptions : ChannelOptions
 {
     /// <summary>
-    /// Creates the options.
+    /// Creates the options. The two required values — the in-memory <paramref name="capacity"/>, the
+    /// target <paramref name="bucket"/>, and the <paramref name="client"/> — are constructor
+    /// arguments; everything else (including <see cref="Prefix"/>) is an optional init property.
     /// </summary>
     /// <param name="capacity">In-memory bound. The channel spills once this many unread items are buffered.</param>
     /// <param name="bucket">The S3 bucket that committed chunks are uploaded to.</param>
-    /// <param name="prefix">The key prefix (sub-key) under which chunk objects are stored. May be empty.</param>
-    public S3BackedChannelOptions(int capacity, string bucket, string prefix)
+    /// <param name="client">The S3 client used for all bucket operations. Inject your configured (region, credentials) <see cref="IAmazonS3"/>.</param>
+    public S3BackedChannelOptions(int capacity, string bucket, IAmazonS3 client)
     {
         if (capacity < 0)
         {
@@ -33,10 +35,7 @@ public class S3BackedChannelOptions : ChannelOptions
 
         Capacity = capacity;
         Bucket = bucket;
-
-        // Normalize the prefix: strip leading/trailing slashes so key building is unambiguous.
-        // An empty prefix means objects are written at the root of the bucket.
-        Prefix = (prefix ?? string.Empty).Trim('/');
+        Client = client ?? throw new ArgumentNullException(nameof(client));
     }
 
     /// <summary>
@@ -48,17 +47,21 @@ public class S3BackedChannelOptions : ChannelOptions
     /// <summary>The S3 bucket that committed chunk objects are uploaded to.</summary>
     public string Bucket { get; init; }
 
-    /// <summary>
-    /// The key prefix (sub-key) under which chunk objects are stored, with surrounding slashes
-    /// trimmed. Object keys take the form <c>{Prefix}/{guidv7}.{count}.ndjson</c>.
-    /// </summary>
-    public string Prefix { get; init; }
+    /// <summary>The S3 client used for all bucket operations.</summary>
+    public IAmazonS3 Client { get; }
 
     /// <summary>
-    /// The S3 client used for all bucket operations. Required — the channel constructor throws if
-    /// it is not supplied. Inject your configured (region, credentials) <see cref="IAmazonS3"/>.
+    /// The key prefix (sub-key) under which chunk objects are stored, with surrounding slashes
+    /// trimmed. Optional — defaults to empty, meaning objects are written at the root of the bucket.
+    /// Object keys take the form <c>{Prefix}/{guidv7}.{count}.ndjson</c>.
     /// </summary>
-    public IAmazonS3 Client { get; init; } = null!;
+    public string Prefix
+    {
+        get => _prefix;
+        init => _prefix = (value ?? string.Empty).Trim('/');
+    }
+
+    private readonly string _prefix = string.Empty;
 
     /// <summary>
     /// The maximum time an in-flight chunk is held in memory before it is uploaded, even if it has

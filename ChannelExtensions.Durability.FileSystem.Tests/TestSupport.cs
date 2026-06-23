@@ -4,7 +4,7 @@ using System.Threading.Channels;
 using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 using Microsoft.Extensions.Logging;
 
-namespace ChannelExtensions.Durability.Tests;
+namespace ChannelExtensions.Durability.FileSystem.Tests;
 
 /// <summary>A throwaway temp directory that deletes itself on dispose.</summary>
 internal sealed class TempDir : IDisposable

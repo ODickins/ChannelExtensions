@@ -1,151 +1,129 @@
-# ChannelExtensions.Durability.FileSystem
+# ChannelExtensions.Durability
 
-Durable variants of `System.Threading.Channels.Channel<T>` that survive process
-restarts and back-pressure without dropping or reordering items.
+Durable, drop-in variants of `System.Threading.Channels.Channel<T>` that survive process restarts
+and back-pressure **without dropping or reordering items**.
 
-Each durable channel is a drop-in `Channel<T>`: you write through `Writer` and
-read through `Reader` exactly as with an in-memory channel. The durability is
-transparent to producers and consumers.
+Each durable channel is a drop-in `Channel<T>`: you write through `Writer` and read through `Reader`
+exactly as with an in-memory channel. When the channel fills, overflow is persisted to a backing
+store and replayed back in order once the consumer catches up. The durability is transparent to
+producers and consumers — no API to learn beyond the standard `Channel<T>`.
 
-## Available channels
+This repository is a family of packages, one per backing store:
 
-| Channel | Backing store | Use when |
-| --- | --- | --- |
-| [`FileBackedChannel<T>`](#filebackedchannel) | Local filesystem (NDJSON blocks) | You need overflow + crash durability on a single node with a local/attached disk. |
-| [`S3BackedChannel<T>`](https://www.nuget.org/packages/ChannelExtensions.Durability.S3) | Amazon S3 (NDJSON chunk objects; no local disk) | You need overflow durability backed by S3, buffered in memory and uploaded in chunks, listed once on startup and tracked in-memory thereafter. Ships in the `ChannelExtensions.Durability.S3` package. |
+| Package | Backing store | Use when | Docs |
+| --- | --- | --- | --- |
+| [`ChannelExtensions.Durability.FileSystem`](https://www.nuget.org/packages/ChannelExtensions.Durability.FileSystem) | Local filesystem (NDJSON blocks) | You need overflow + crash durability on a single node with a local/attached disk. | [README](ChannelExtensions.Durability.FileSystem/README.md) |
+| [`ChannelExtensions.Durability.S3`](https://www.nuget.org/packages/ChannelExtensions.Durability.S3) | Amazon S3 (NDJSON chunk objects; no local disk) | You need overflow durability backed by S3, buffered in memory and uploaded in chunks. | [README](ChannelExtensions.Durability.S3/README.md) |
 
-> More durable channels (e.g. other backing stores) can be added alongside
-> `FileBackedChannel`. Each ships as its own `ChannelExtensions.Durability.*`
-> package with its own `Create…` factory and options type.
+## Install
 
----
+```bash
+# Local filesystem backing store
+dotnet add package ChannelExtensions.Durability.FileSystem
 
-## FileBackedChannel
+# Amazon S3 backing store
+dotnet add package ChannelExtensions.Durability.S3
+```
 
-An in-memory bounded channel that **spills to disk** when it fills, then drains
-the disk backlog back into the channel once the consumer catches up.
+## Quick start
 
-### How it works
+Both channels are created from a factory extension on `Channel` and then used like any other
+`Channel<T>`. See each package's README for the full options and behavior.
 
-- Writes normally go straight to an in-memory bounded channel (**direct mode**).
-- When the channel fills, the channel switches to **spill mode**: *every* write
-  is appended to disk instead. This preserves order — new items can never jump
-  ahead of items already queued on disk.
-- A background writer batches spilled items into newline-delimited JSON
-  (`.ndjson`) blocks. A block is committed when it reaches `MaxBlockSize` items
-  **or** `CommitInterval` elapses, whichever comes first.
-- A background reader replays committed blocks oldest-first back into the
-  channel, waiting for space so the consumer is never overwhelmed.
-- Once the entire disk backlog is drained, the channel reverts to direct mode.
-
-### Guarantees
-
-- **No drops** — items that don't fit in memory are persisted, not discarded.
-- **Ordering** — preserved across the spill boundary and across restarts.
-- **Crash recovery** — on startup, half-written blocks left by a crash are
-  finalized (the truncated trailing record is dropped) and replayed. If a
-  backlog exists at startup, the channel begins in spill mode so new writes
-  queue behind it.
-- **Idempotent replay** — each block tracks how many records have been handed to
-  the consumer via a checkpoint written *before* each emit, so a crash mid-replay
-  does not re-deliver an already-emitted record (at-most-once at the boundary;
-  no duplicates).
-- **Durable writes** — blocks and checkpoints are written with
-  `FileOptions.WriteThrough`, bypassing the OS write cache.
-
-### Usage
+**FileSystem** — spills to a local directory:
 
 ```csharp
 using System.Threading.Channels;
 using ChannelExtensions.Durability.FileSystem;
 using ChannelExtensions.Durability.FileSystem.FileBackedChannel;
 
-// Create the channel. The path is created (and verified read/write/delete-able)
-// in the constructor; an unusable path throws.
 Channel<MyEvent> channel = Channel.CreateFileBackedChannel<MyEvent>(
     new FileBackedChannelOptions(capacity: 10_000, path: @"C:\data\my-channel"));
 
-// Producer — identical to any Channel<T>.
 await channel.Writer.WriteAsync(new MyEvent(...));
-
-// Consumer — identical to any Channel<T>.
 await foreach (var item in channel.Reader.ReadAllAsync())
-{
     Handle(item);
-}
 ```
 
-### Dependency injection
-
-The factory runs eagerly, so register it with a factory delegate when you want
-the configured `ILogger` (or other services) injected:
+**S3** — buffers in memory and uploads chunks to a bucket/prefix:
 
 ```csharp
-builder.Services.AddSingleton<Channel<MyEvent>>(sp =>
-    Channel.CreateFileBackedChannel<MyEvent>(
-        new FileBackedChannelOptions(10_000, @"C:\data\my-channel")
-        {
-            Logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("FileBackedChannel"),
-        }));
+using System.Threading.Channels;
+using Amazon.S3;
+using ChannelExtensions.Durability.S3;
+using ChannelExtensions.Durability.S3.S3BackedChannel;
+
+IAmazonS3 s3 = new AmazonS3Client(); // your configured region/credentials
+
+Channel<MyEvent> channel = Channel.CreateS3BackedChannel<MyEvent>(
+    new S3BackedChannelOptions(capacity: 10_000, bucket: "my-bucket", client: s3)
+    {
+        Prefix = "events/durable-channel", // optional
+    });
+
+await channel.Writer.WriteAsync(new MyEvent(...));
+await foreach (var item in channel.Reader.ReadAllAsync())
+    Handle(item);
 ```
 
-> Note: a durable channel is **not** an `IHostedService`. Its background drain
-> loops start in the constructor. Logging is configured purely by the `Logger`
-> option — when omitted it defaults to a no-op logger.
+## Shared design
 
-### Options
+All channels in the family follow the same model:
 
-`FileBackedChannelOptions` extends `ChannelOptions`.
+- **Drop-in `Channel<T>`.** The exposed `Reader` is an in-memory bounded channel; the exposed
+  `Writer` decides per-write whether to go direct or to spill to the backing store.
+- **Spill on pressure.** While there's room, writes go straight through (direct mode). Once full,
+  *every* write spills to the backing store until the backlog drains — this is what preserves global
+  ordering across the boundary.
+- **Ordered replay.** Spilled records are batched into time-ordered (v7 GUID) NDJSON blocks/objects
+  and replayed oldest-first, waiting for space so the consumer is never overwhelmed.
+- **Eager, not hosted.** Background drain loops start in the constructor — a channel is *not* an
+  `IHostedService`. There is no async init step to await.
+- **Resilient loops.** Backing-store failures are logged (with `EventId`s) and handled rather than
+  thrown out of the background loops, so a transient fault never tears down the host.
 
-| Option | Default | Description |
-| --- | --- | --- |
-| `Capacity` (ctor) | — | In-memory bound. The channel spills to disk once this many unread items are buffered. |
-| `Path` (ctor) | — | Directory for block/checkpoint files. Created and verified at construction. |
-| `CommitInterval` | `15s` | Max time a spill block stays open before being committed. |
-| `MaxBlockSize` | `1000` | Max records per block; commits early when reached. |
-| `PollInterval` | `1s` | How often the reader looks for newly committed blocks when idle. |
-| `JsonSerializerOptions` | `JsonSerializerOptions.Web` | Serialization for on-disk records. |
-| `QuarantineCorruptBlocks` | `true` | When `true`, corrupt/unrecoverable blocks are renamed `.corrupt` and kept for inspection. When `false`, they are deleted instead (self-cleaning directory). |
-| `Logger` | `null` (no-op) | `ILogger` for spill/recovery/error events. |
+The packages differ in their durability boundary and recovery story — for example, FileSystem gives
+at-most-once delivery at the replay boundary via local checkpoints, while S3 keeps nothing on disk
+and is at-least-once at that boundary. See each README for the exact guarantees.
 
-### On-disk layout
+## Choosing a backing store
 
-All files live under `Path`:
+- **Single node with a local/attached disk** → `FileSystem`. Strongest crash story (durable writes,
+  checkpointed idempotent replay), no external dependency.
+- **Durability that outlives the node, or no usable local disk** → `S3`. Nothing touches local disk;
+  the bucket is listed once on startup and pending object keys are tracked in memory thereafter.
 
-| File | Meaning |
-| --- | --- |
-| `{guidv7}.tmp` | A block currently being written. Recovered on startup. |
-| `{guidv7}.{count}.ndjson` | A committed block of `count` records. Time-ordered by the v7 GUID prefix. |
-| `{block}.ndjson.ckpt` | Replay checkpoint: records already delivered from that block. |
-| `{name}.corrupt` | A block quarantined after an unrecoverable read error. Only present when `QuarantineCorruptBlocks` is enabled (the default); otherwise such blocks are deleted. |
-
-### Logging
-
-All log events carry an `EventId` (see `FileBackedChannelEventIds`): spill
-started/completed, backlog recovered, block commit/replay/recovery failures,
-quarantine/delete failures, and drain-loop faults. Failures are logged and
-handled rather than thrown out of the background loops.
-
-### Disposal
-
-Disposing the channel cancels the background loops and gives in-flight commits a
-bounded chance to finish. Items still buffered in memory (not yet spilled) are
-lost on a hard process kill, which is the window the spill + recovery machinery
-exists to minimize.
-
----
-
-## Project layout
+## Repository layout
 
 | Project | Purpose |
 | --- | --- |
-| `ChannelExtensions.Durability.FileSystem` | The file-backed durable channel implementation. |
-| `ChannelExtensions.Durability.S3` | The S3-backed durable channel implementation (in-memory buffering, no local disk). |
-| `ChannelExtensions.Durability.Tests` | xUnit tests for the file-backed channel (no-drop, ordering across spill, crash recovery, idempotent replay, logging). |
+| `ChannelExtensions.Durability.FileSystem` | The file-backed durable channel. |
+| `ChannelExtensions.Durability.S3` | The S3-backed durable channel (in-memory buffering, no local disk). |
+| `ChannelExtensions.Durability.FileSystem.Tests` | xUnit tests for the file-backed channel (no-drop, ordering across spill, crash recovery, idempotent replay, logging). |
 | `ChannelExtensions.Durability.S3.Tests` | xUnit tests for the S3-backed channel, run against a real MinIO server via Testcontainers (requires Docker). |
 
-## Running the tests
+## Building and testing
 
 ```bash
-dotnet test ChannelExtensions.Durability.Tests
+dotnet build
+
+# All test projects.
+dotnet test
+
+# A single project.
+dotnet test ChannelExtensions.Durability.FileSystem.Tests
 ```
+
+> The S3 tests (`ChannelExtensions.Durability.S3.Tests`) run against a real MinIO server via
+> Testcontainers and therefore require Docker to be running.
+
+## Publishing
+
+Publishing is automated. Publishing a GitHub Release tagged `vX.Y.Z` triggers
+`.github/workflows/publish-to-nuget.yml`, which builds, tests, packs **every** packable project, and
+pushes the packages to nuget.org via OIDC trusted publishing (no stored API key). The tag's `v`
+prefix is stripped to form the package version.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -39,9 +39,9 @@ internal static class TestHelpers
     // Short commit interval so tests don't wait on the production 15s default.
     public static S3BackedChannelOptions Options(
         string bucket, string prefix, IAmazonS3 client, int capacity, ILogger? logger = null, int maxChunkSize = 16)
-        => new(capacity, bucket, prefix)
+        => new(capacity, bucket, client)
         {
-            Client = client,
+            Prefix = prefix,
             CommitInterval = TimeSpan.FromMilliseconds(100),
             MaxChunkSize = maxChunkSize,
             Logger = logger,

@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChannelExtensions.Durability.FileSystem", "ChannelExtensions.Durability.FileSystem\ChannelExtensions.Durability.FileSystem.csproj", "{94B20AC3-6412-4A49-8505-87403EBDB6D1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChannelExtensions.Durability.Tests", "ChannelExtensions.Durability.Tests\ChannelExtensions.Durability.Tests.csproj", "{078BB873-FB28-4AD2-8D9C-EC564E0E5BFD}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChannelExtensions.Durability.FileSystem.Tests", "ChannelExtensions.Durability.FileSystem.Tests\ChannelExtensions.Durability.FileSystem.Tests.csproj", "{078BB873-FB28-4AD2-8D9C-EC564E0E5BFD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ChannelExtensions.Durability.S3", "ChannelExtensions.Durability.S3\ChannelExtensions.Durability.S3.csproj", "{222F5F75-1B61-46B0-B013-BC4FAFC5FF37}"
 EndProject

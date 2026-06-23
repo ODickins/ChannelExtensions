@@ -9,6 +9,15 @@ Part of the `ChannelExtensions.Durability.*` family. See also
 [`ChannelExtensions.Durability.FileSystem`](https://www.nuget.org/packages/ChannelExtensions.Durability.FileSystem)
 for the local-disk variant.
 
+## Install
+
+```bash
+dotnet add package ChannelExtensions.Durability.S3
+```
+
+Depends on [`AWSSDK.S3`](https://www.nuget.org/packages/AWSSDK.S3) — you supply a configured
+`IAmazonS3` client (see [Usage](#usage)).
+
 ## How it works
 
 - Writes normally go straight to an in-memory bounded channel (**direct mode**).
@@ -51,13 +60,10 @@ using ChannelExtensions.Durability.S3.S3BackedChannel;
 IAmazonS3 s3 = new AmazonS3Client(); // your configured region/credentials
 
 Channel<MyEvent> channel = Channel.CreateS3BackedChannel<MyEvent>(
-    new S3BackedChannelOptions(
-        capacity: 10_000,
-        bucket: "my-bucket",
-        prefix: "events/durable-channel") // sub-key the chunks are stored under
+    new S3BackedChannelOptions(capacity: 10_000, bucket: "my-bucket", client: s3)
     {
-        Client = s3,
-        MaxChunkSize = 1_000, // upload once this many overflow items have accumulated
+        Prefix = "events/durable-channel", // optional sub-key the chunks are stored under
+        MaxChunkSize = 1_000,              // upload once this many overflow items have accumulated
     });
 
 // Producer and consumer are identical to any Channel<T>.
@@ -71,6 +77,28 @@ await foreach (var item in channel.Reader.ReadAllAsync())
 > synchronously, so it makes a blocking S3 call; construct it off the hot path. Logging is
 > configured purely by the `Logger` option.
 
+## Dependency injection
+
+Register the `IAmazonS3` client and the channel as singletons. The factory runs eagerly, so use a
+factory delegate to inject the client and a configured `ILogger`:
+
+```csharp
+builder.Services.AddSingleton<IAmazonS3>(_ => new AmazonS3Client());
+
+builder.Services.AddSingleton<Channel<MyEvent>>(sp =>
+    Channel.CreateS3BackedChannel<MyEvent>(
+        new S3BackedChannelOptions(10_000, "my-bucket", sp.GetRequiredService<IAmazonS3>())
+        {
+            Prefix = "events/durable-channel",
+            Logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger("S3BackedChannel"),
+        }));
+```
+
+> **MinIO / non-AWS endpoints:** configure the client with `ForcePathStyle = true`, and because
+> AWSSDK v4 enables request/response checksums by default (which MinIO rejects with an
+> `x-amz-content-sha256` mismatch) set `RequestChecksumCalculation` and `ResponseChecksumValidation`
+> to `WHEN_REQUIRED` on the `AmazonS3Config`.
+
 ## Options
 
 `S3BackedChannelOptions` extends `ChannelOptions`.
@@ -79,8 +107,8 @@ await foreach (var item in channel.Reader.ReadAllAsync())
 | --- | --- | --- |
 | `Capacity` (ctor) | — | In-memory bound. The channel spills once this many unread items are buffered. |
 | `Bucket` (ctor) | — | The S3 bucket chunk objects are uploaded to. |
-| `Prefix` (ctor) | — | Key prefix (sub-key) for chunk objects; surrounding slashes are trimmed. May be empty. |
-| `Client` | — (required) | The `IAmazonS3` used for all bucket operations. The constructor throws if not supplied. |
+| `Client` (ctor) | — | The `IAmazonS3` used for all bucket operations. The constructor throws if it is `null`. |
+| `Prefix` | `""` (bucket root) | Optional key prefix (sub-key) for chunk objects; surrounding slashes are trimmed. |
 | `CommitInterval` | `15s` | Max time an in-flight chunk is held in memory before it is uploaded. |
 | `MaxChunkSize` | `1000` | Max records per chunk object; uploads as soon as this many have accumulated. |
 | `JsonSerializerOptions` | `JsonSerializerOptions.Web` | Serialization for records. |
